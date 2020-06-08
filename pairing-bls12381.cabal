@@ -1,0 +1,66 @@
+cabal-version: 1.12
+
+-- This file has been generated from package.yaml by hpack version 0.33.0.
+--
+-- see: https://github.com/sol/hpack
+--
+-- hash: da97b7fe758d8f5c337e56f14bf76e2c1d97ec552ca385e46938c12ccb6428e2
+
+name:           pairing-bls12381
+version:        0.1.0.0
+description:    Please see the README on GitHub at <https://github.com/integritychain/pairing-bls12381#readme>
+homepage:       https://github.com/integritychain/pairing-bls12381#readme
+bug-reports:    https://github.com/integritychain/pairing-bls12381/issues
+author:         Eric Schorn
+maintainer:     eschorn@integritychain.com
+copyright:      2020 Eric Schorn
+license:        BSD3
+license-file:   LICENSE
+build-type:     Simple
+extra-source-files:
+    README.md
+    ChangeLog.md
+
+source-repository head
+  type: git
+  location: https://github.com/integritychain/pairing-bls12381
+
+library
+  exposed-modules:
+      Pairing_bls12381
+  other-modules:
+      Paths_pairing_bls12381
+  hs-source-dirs:
+      Crypto
+  build-depends:
+      base >=4.7 && <5
+  default-language: Haskell2010
+
+executable pairing-bls12381-exe
+  main-is: Main.hs
+  other-modules:
+      Paths_pairing_bls12381
+  hs-source-dirs:
+      app
+  ghc-options: -threaded -rtsopts -with-rtsopts=-N -Wall -Wcompat -Wincomplete-record-updates -Wincomplete-uni-patterns -Wredundant-constraints
+  build-depends:
+      base >=4.7 && <5
+    , pairing-bls12381
+  default-language: Haskell2010
+
+test-suite pairing-bls12381-test
+  type: exitcode-stdio-1.0
+  main-is: Test.hs
+  other-modules:
+      Paths_pairing_bls12381
+  hs-source-dirs:
+      test
+  ghc-options: -threaded -rtsopts -with-rtsopts=-N -Wall
+  build-depends:
+      base >=4.7 && <5
+    , pairing-bls12381
+    , tasty
+    , tasty-hunit
+    , tasty-quickcheck
+    , tasty-smallcheck
+  default-language: Haskell2010

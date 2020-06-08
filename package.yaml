@@ -1,0 +1,58 @@
+name:                pairing-bls12381
+version:             0.1.0.0
+github:              "integritychain/pairing-bls12381"
+license:             BSD3
+author:              "Eric Schorn"
+maintainer:          "eschorn@integritychain.com"
+copyright:           "2020 Eric Schorn"
+
+extra-source-files:
+- README.md
+- ChangeLog.md
+
+# Metadata used when publishing your package
+# synopsis:            Short description of your package
+# category:            Web
+
+# To avoid duplicated efforts in documentation and dealing with the
+# complications of embedding Haddock markup inside cabal files, it is
+# common to point users to the README.md file.
+description:         Please see the README on GitHub at <https://github.com/integritychain/pairing-bls12381#readme>
+
+dependencies:
+- base >= 4.7 && < 5
+
+library:
+  source-dirs: Crypto
+
+executables:
+  pairing-bls12381-exe:
+    main:                Main.hs
+    source-dirs:         app
+    ghc-options:
+    - -threaded
+    - -rtsopts
+    - -with-rtsopts=-N
+    - -Wall
+    - -Wcompat
+    - -Wincomplete-record-updates
+    - -Wincomplete-uni-patterns
+    - -Wredundant-constraints
+    dependencies:
+    - pairing-bls12381
+
+tests:
+  pairing-bls12381-test:
+    main:                Test.hs
+    source-dirs:         test
+    ghc-options:
+    - -threaded
+    - -rtsopts
+    - -with-rtsopts=-N
+    - -Wall
+    dependencies:
+    - pairing-bls12381
+    - tasty
+    - tasty-hunit
+    - tasty-quickcheck
+    - tasty-smallcheck
