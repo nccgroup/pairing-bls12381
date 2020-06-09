@@ -1,8 +1,8 @@
 {-|
 Module      : Pairing_bls12381
 Description : Pairing over the BLS12-381 elliptic curve
-Copyright   : (c) Eric Schorn, NCC Group, 2020
-License     : GPL-3
+Copyright   : (c) Eric Schorn, NCC Group Plc, 2020
+License     : BSD-3
 Maintainer  : eric.schorn@nccgroup.com
 Stability   : experimental
 
@@ -52,8 +52,8 @@ Just True@
 -}
 
 
-module Pairing_bls12381 (g1Point, g2Point, g1Generator, g2Generator,
-                 pointMul, pairing, prime, order, smokeTest, Num( (*) ) ) where
+module Pairing_bls12381 (g1Point, g2Point, g1Generator, g2Generator, pointMul,
+                         pairing, prime, order, smokeTest, Num( (*) ) ) where
 
 
 import Data.Bits (shiftR)
@@ -98,6 +98,7 @@ instance Field Fq1 where
 
   mul_nonres a0 = a0
 
+  -- All fields inverse of 0 arrive here
   inv (Fq1 a0) = if a0 == 0 then error "inverse of 0" else Fq1 (beea a0 prime 1 0 prime)
 
 
@@ -299,27 +300,27 @@ untwist Affine {ax=x1, ay=y1} = Affine {ax=wide_x, ay=wide_y}
 doubleEval :: Point Fq2 -> Point Fq1 -> Fq12
 doubleEval r p = fromInteger (t0 (ay p)) - (fromInteger (t0 (ax p)) * slope) - v
   where
-    r_new = untwist r
-    rx2 = ax r_new * ax r_new
-    slope = (3 * rx2) * inv (2 * ay r_new)
-    v = ay r_new - slope * ax r_new
+    wide_r = untwist r
+    rx2 = ax wide_r^2
+    slope = (3 * rx2) * inv (2 * ay wide_r)
+    v = ay wide_r - slope * ax wide_r
 
 
 -- Used in miller loop when current bit index is true
 addEval :: Point Fq2 -> Point Fq2 -> Point Fq1 -> Fq12
-addEval r q p = if (ax new_r == ax new_q) && (ay new_r == - ay new_q)
-                       then fromInteger (t0 (ax p)) - ax new_r
-                       else addEval' new_r new_q p
+addEval r q p = if (ax wide_r == ax wide_q) && (ay wide_r == - ay wide_q)
+                       then fromInteger (t0 (ax p)) - ax wide_r
+                       else addEval' wide_r wide_q p
   where
-    new_r = untwist r
-    new_q = untwist q
+    wide_r = untwist r
+    wide_q = untwist q
 
 
 addEval' :: Point Fq12 -> Point Fq12 -> Point Fq1 -> Fq12
-addEval' new_r new_q p = fromInteger (t0 (ay p)) - (fromInteger (t0 (ax p)) * slope) - v
+addEval' wide_r wide_q p = fromInteger (t0 (ay p)) - (fromInteger (t0 (ax p)) * slope) - v
   where
-    slope = (ay new_q - ay new_r) * inv (ax new_q - ax new_r)
-    v = ((ay new_q * ax new_r) - (ay new_r * ax new_q)) * inv (ax new_r - ax new_q)
+    slope = (ay wide_q - ay wide_r) * inv (ax wide_q - ax wide_r)
+    v = ((ay wide_q * ax wide_r) - (ay wide_r * ax wide_q)) * inv (ax wide_r - ax wide_q)
 
 
 -- Classic Miller loop for Ate pairing
@@ -357,10 +358,9 @@ pairing p_g1 q_g2
   | otherwise = Nothing
 
 
-
 -- | A quick test of externally inaccessible functionality; returns success.
 smokeTest :: Bool
-smokeTest = and $ res1 ++ res2 ++ res6 ++ res12 ++ resMul ++ res_one -- resGs ++ resO ++ resPr
+smokeTest = and $ res1 ++ res2 ++ res6 ++ res12 ++ resMul ++ resOne
   where
     operands  = [100..1100]
     res1  = [(fromInteger x :: Fq1)  * inv (fromInteger x) == 1 | x <- operands]
@@ -371,4 +371,4 @@ smokeTest = and $ res1 ++ res2 ++ res6 ++ res12 ++ resMul ++ res_one -- resGs ++
     p_12p34m56 = g1Generator >>= pointMul ((12 + 34) * 56)
     q_78 = g2Generator >>= pointMul 78
     (Just pair) =  Control.Monad.join (pairing <$> p_12p34m56 <*> q_78)
-    res_one = [pow' pair order 0 == 1]  -- confirms pair result is rth root of unity
+    resOne = [pow' pair order 0 == 1]  -- confirms pair result is rth root of unity
