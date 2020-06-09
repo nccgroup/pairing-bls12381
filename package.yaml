@@ -1,23 +1,18 @@
 name:                pairing-bls12381
 version:             0.1.0.0
-github:              "integritychain/pairing-bls12381"
+github:              "nccgroup/pairing-bls12381"
 license:             BSD3
 author:              "Eric Schorn"
-maintainer:          "eschorn@integritychain.com"
-copyright:           "2020 Eric Schorn"
+maintainer:          "eric.schorn@nccgroup.com"
+copyright:           "2020 Eric Schorn, NCC Group"
 
 extra-source-files:
 - README.md
 - ChangeLog.md
 
-# Metadata used when publishing your package
-# synopsis:            Short description of your package
-# category:            Web
-
-# To avoid duplicated efforts in documentation and dealing with the
-# complications of embedding Haddock markup inside cabal files, it is
-# common to point users to the README.md file.
-description:         Please see the README on GitHub at <https://github.com/integritychain/pairing-bls12381#readme>
+synopsis:            Pairing operations over the BLS12-381 elliptic curve
+category:            Crypto
+description:         Please see the README on GitHub at <https://github.com/nccgroup/pairing-bls12381#readme>
 
 dependencies:
 - base >= 4.7 && < 5
@@ -38,6 +33,7 @@ executables:
     - -Wincomplete-record-updates
     - -Wincomplete-uni-patterns
     - -Wredundant-constraints
+    - -O2
     dependencies:
     - pairing-bls12381
 
@@ -50,9 +46,11 @@ tests:
     - -rtsopts
     - -with-rtsopts=-N
     - -Wall
+    - -Wcompat
+    - -Wincomplete-record-updates
+    - -Wincomplete-uni-patterns
+    - -Wredundant-constraints
     dependencies:
     - pairing-bls12381
     - tasty
     - tasty-hunit
-    - tasty-quickcheck
-    - tasty-smallcheck

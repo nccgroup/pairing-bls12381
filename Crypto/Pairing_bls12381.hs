@@ -1,9 +1,9 @@
 {-|
 Module      : Pairing_bls12381
 Description : Pairing over the BLS12-381 elliptic curve
-Copyright   : (c) Eric Schorn, 2020
+Copyright   : (c) Eric Schorn, NCC Group, 2020
 License     : GPL-3
-Maintainer  : eschorn@integritychain.com
+Maintainer  : eric.schorn@nccgroup.com
 Stability   : experimental
 
 Implements the BLS12-381 pairing calculation per https://electriccoin.co/blog/new-snark-curve/.
@@ -19,8 +19,8 @@ Note that field element constructors are not exported. Points can either be cons
 directly via the `g1Point` or `g2Point` functions, or they can be constructed from the
 `pointMul` function given a scalar and typically either the `g1Generator` or `g2Generator`
 points. Points are then used in the `pairing` function which returns `Fq12` elements that
-can be tested for equality or shown. The Fq12 `*` operator is also exported to support
-more elaborate pairing computations (see example below).
+can be tested for equality, shown or used in more elaborate calculations with the exported
+Fq12 `*` operator (see example below).
 
 Coordinates and Points are internally validated to be on-curve. As such, the `g1Point`,
 `g1Generator`, `g2Point`, `g2Generator` and `pointMul` functions all return `Maybe Points`
@@ -43,20 +43,23 @@ where g1 and g2 are group generators. Below is a @ghci@ interpreter session.
 *Pairing_bls12381> p_78 = g1Generator >>= pointMul 78
 *Pairing_bls12381> q_12m56 = g2Generator >>= pointMul (12 * 56)
 *Pairing_bls12381> q_34m56 = g2Generator >>= pointMul (34 * 56)
-*Pairing_bls12381> pair2 = pairing \<$>\ p_78 \<*\> q_12m56 >>= id
-*Pairing_bls12381> pair3 = pairing \<$>\ p_78 \<*\> q_34m56 >>= id
-*Pairing_bls12381> rightSide = (*) \<$>\ pair2 \<*\> pair3
+*Pairing_bls12381> pair2 = pairing \<$\> p_78 \<*\> q_12m56 >>= id
+*Pairing_bls12381> pair3 = pairing \<$\> p_78 \<*\> q_34m56 >>= id
+*Pairing_bls12381> rightSide = (*) \<$\> pair2 \<*\> pair3
 *Pairing_bls12381>
 *Pairing_bls12381> (==) \<$\> leftSide \<*\> rightSide
 Just True@
 -}
 
+
 module Pairing_bls12381 (g1Point, g2Point, g1Generator, g2Generator,
                  pointMul, pairing, prime, order, smokeTest, Num( (*) ) ) where
 
+
 import Data.Bits (shiftR)
 import Data.List (unfoldr)
-import Data.Maybe (isNothing)
+import Control.Monad (join)
+
 
 -- Tower extension fields. See https://eprint.iacr.org/2009/556.pdf
 newtype Fq1 = Fq1 {t0 :: Integer} deriving (Eq, Show)
@@ -157,7 +160,6 @@ instance Field Fq6 where
       factor = inv (a0 * t0 + mul_nonres (a2 * t1) + mul_nonres (a1 * t2))
 
 
-
 -- Fq12 is constructed with Fq6(w) / (w^2 - γ) where γ = v
 instance Num Fq12 where
 
@@ -183,7 +185,6 @@ instance Field Fq12 where
       factor = inv (a0 * a0 - mul_nonres (a1 * a1))
 
 
-
 -- Binary Extended Euclidean Algorithm (note that there are no divisions)
 -- See: Guide to Elliptic Curve Cryptography by Hankerson, Menezes, and Vanstone
 beea :: Integer -> Integer -> Integer -> Integer -> Integer -> Integer
@@ -199,8 +200,7 @@ beea u v x1 x2 p
   | u < v  = beea u (v - u) x1 (x2 - x1) p
 
 
--- Note we use Affine coordinates throughout for simplicity. However, projective
--- coordinates could easily be inserted here...
+-- Note that Affine coordinates are used throughout for simplicity, despite performance hit
 data Point a = Affine {ax :: a, ay :: a}
              | PointAtInfinity deriving (Eq, Show)
 
@@ -308,8 +308,8 @@ doubleEval r p = fromInteger (t0 (ay p)) - (fromInteger (t0 (ax p)) * slope) - v
 -- Used in miller loop when current bit index is true
 addEval :: Point Fq2 -> Point Fq2 -> Point Fq1 -> Fq12
 addEval r q p = if (ax new_r == ax new_q) && (ay new_r == - ay new_q)
-                    then fromInteger (t0 (ax p)) - ax new_r
-                    else addEval' new_r new_q p
+                       then fromInteger (t0 (ax p)) - ax new_r
+                       else addEval' new_r new_q p
   where
     new_r = untwist r
     new_q = untwist q
@@ -358,48 +358,17 @@ pairing p_g1 q_g2
 
 
 
--- | A quick test of internal field arithmetic, curve operations and pairing; returns success.
+-- | A quick test of externally inaccessible functionality; returns success.
 smokeTest :: Bool
-smokeTest = True -- and $ res1 ++ res2 ++ res6 ++ res12 ++ resGs ++ resO ++ resPr
---  where
---    operands  = [100..1100]
---    res1  = [(fromInteger x :: Fq1)  * inv (fromInteger x) == 1 | x <- operands]
---    res2  = [(fromInteger x :: Fq2)  * inv (fromInteger x) == 1 | x <- operands]
---    res6  = [(fromInteger x :: Fq6)  * inv (fromInteger x) == 1 | x <- operands]
---    res12 = [(fromInteger x :: Fq12) * inv (fromInteger x) == 1 | x <- operands]
---    resGs = [
---      (g1Generator >>= (pointMul 0x49abcbaa08d87d1cba8fd9c0ea04df30b94df934827a7383098ac39e1aafc218)) == Just Affine
---        {ax = Fq1 0x019906b4953328ec688ffc9e41ea7d79d295c7de6249eb0397680306c5fe3aa3bbb45324bdbc379e8e4116166f2a0d40,
---         ay = Fq1 0x165f11693959e7193af31b99b724f95d7b49baa2394b758c2455ef725f32abd56361e1e151f2bbd7a7efc6f3bb5652d4},
---      (g2Generator >>= (pointMul 0x49abcbaa08d87d1cba8fd9c0ea04df30b94df934827a7383098ac39e1aafc218))  == Just Affine
---        {ax = Fq2 (Fq1 0x02433912fa403e0d19d39c7687eb1041f474a82fdd646b1a35afb4d088f11469467468f1ba16c3e5838503919bdbfa24)
---                  (Fq1 0x14906db96db027e17449a1323198cfccde4d15456ce09f3fef4c7baed5495463b7cc750300e0e2918d5680d97a567122),
---         ay = Fq2 (Fq1 0x0e82e52250625e4c0864645fba3b36e24c36dbc3d4bae0ca40b0c28b0e3780bf6b8d022c032727e8195e2a2b547be84b)
---                  (Fq1 0x0f240b0ffee3ac62cd5576f012a92cd78c9ded14c11c7637caff4daf885c9a258783a7aef4dc1815737a5b606e03868e)}
---      ]
---    resO = [(g1Generator >>= (pointMul order)) == Just PointAtInfinity,
---            (g2Generator >>= (pointMul order)) == Just PointAtInfinity]
-
-
---    scalar_1 = [100..102]
---    scalar_2 = [200..202]
---    p_g1 = [g1Generator >>= (pointMul x) | x <- scalar_1]
---    p_g2 = [g2Generator >>= (pointMul x) | x <- scalar_1]
---    q_g1 = [g1Generator >>= (pointMul x) | x <- scalar_2]
---    q_g2 = [g2Generator >>= (pointMul x) | x <- scalar_2]
---    pairing1 = [pairing p q | (Just p) <- p_g1, (Just q) <- q_g2]
---    pairing2 = [pairing q p | (Just p) <- p_g2, (Just q) <- q_g1]
---    resPr = [
---      pairing1 == pairing2,
---      (==) <$> pairing1 <*> pairing2,
---      Nothing `notElem` (p_g1 ++ q_g1),
---      Nothing `notElem` (p_g2 ++ q_g2),
---      Nothing `notElem` (pairing1 ++ pairing2),
---      isNothing (g1Point 1 2),
---      isNothing (g2Point 1 2 3 4),
---      all (\(Just p) -> pow' p order 0 == 1) pairing2
---      ]
-
-
-
--- TODO: Test each internal function only --> Fqx, pow <only stuff that cannot be tested from outside>
+smokeTest = and $ res1 ++ res2 ++ res6 ++ res12 ++ resMul ++ res_one -- resGs ++ resO ++ resPr
+  where
+    operands  = [100..1100]
+    res1  = [(fromInteger x :: Fq1)  * inv (fromInteger x) == 1 | x <- operands]
+    res2  = [(fromInteger x :: Fq2)  * inv (fromInteger x) == 1 | x <- operands]
+    res6  = [(fromInteger x :: Fq6)  * inv (fromInteger x) == 1 | x <- operands]
+    res12 = [(fromInteger x :: Fq12) * inv (fromInteger x) == 1 | x <- operands]
+    resMul = [(g1Generator >>= pointMul order) == Just PointAtInfinity]
+    p_12p34m56 = g1Generator >>= pointMul ((12 + 34) * 56)
+    q_78 = g2Generator >>= pointMul 78
+    (Just pair) =  Control.Monad.join (pairing <$> p_12p34m56 <*> q_78)
+    res_one = [pow' pair order 0 == 1]  -- confirms pair result is rth root of unity

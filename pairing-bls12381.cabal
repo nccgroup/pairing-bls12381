@@ -4,16 +4,18 @@ cabal-version: 1.12
 --
 -- see: https://github.com/sol/hpack
 --
--- hash: da97b7fe758d8f5c337e56f14bf76e2c1d97ec552ca385e46938c12ccb6428e2
+-- hash: e335ca42da03392dc83f9dc4b031d9a8cfe6983610d1ca2ab162de622cb264e4
 
 name:           pairing-bls12381
 version:        0.1.0.0
-description:    Please see the README on GitHub at <https://github.com/integritychain/pairing-bls12381#readme>
-homepage:       https://github.com/integritychain/pairing-bls12381#readme
-bug-reports:    https://github.com/integritychain/pairing-bls12381/issues
+synopsis:       Pairing operations over the BLS12-381 elliptic curve
+description:    Please see the README on GitHub at <https://github.com/nccgroup/pairing-bls12381#readme>
+category:       Crypto
+homepage:       https://github.com/nccgroup/pairing-bls12381#readme
+bug-reports:    https://github.com/nccgroup/pairing-bls12381/issues
 author:         Eric Schorn
-maintainer:     eschorn@integritychain.com
-copyright:      2020 Eric Schorn
+maintainer:     eric.schorn@nccgroup.com
+copyright:      2020 Eric Schorn, NCC Group
 license:        BSD3
 license-file:   LICENSE
 build-type:     Simple
@@ -23,7 +25,7 @@ extra-source-files:
 
 source-repository head
   type: git
-  location: https://github.com/integritychain/pairing-bls12381
+  location: https://github.com/nccgroup/pairing-bls12381
 
 library
   exposed-modules:
@@ -42,7 +44,7 @@ executable pairing-bls12381-exe
       Paths_pairing_bls12381
   hs-source-dirs:
       app
-  ghc-options: -threaded -rtsopts -with-rtsopts=-N -Wall -Wcompat -Wincomplete-record-updates -Wincomplete-uni-patterns -Wredundant-constraints
+  ghc-options: -threaded -rtsopts -with-rtsopts=-N -Wall -Wcompat -Wincomplete-record-updates -Wincomplete-uni-patterns -Wredundant-constraints -O2
   build-depends:
       base >=4.7 && <5
     , pairing-bls12381
@@ -55,12 +57,10 @@ test-suite pairing-bls12381-test
       Paths_pairing_bls12381
   hs-source-dirs:
       test
-  ghc-options: -threaded -rtsopts -with-rtsopts=-N -Wall
+  ghc-options: -threaded -rtsopts -with-rtsopts=-N -Wall -Wcompat -Wincomplete-record-updates -Wincomplete-uni-patterns -Wredundant-constraints
   build-depends:
       base >=4.7 && <5
     , pairing-bls12381
     , tasty
     , tasty-hunit
-    , tasty-quickcheck
-    , tasty-smallcheck
   default-language: Haskell2010
