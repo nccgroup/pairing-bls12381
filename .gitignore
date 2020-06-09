@@ -1,3 +1,5 @@
 .stack-work/
 .idea/
+dist/
+dist-newstyle/
 *~
