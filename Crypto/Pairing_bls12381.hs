@@ -67,15 +67,14 @@ data Fq2 = Fq2 {u1 :: Fq1, u0 :: Fq1} deriving (Eq, Show)
 data Fq6 = Fq6 {v2 :: Fq2, v1 :: Fq2, v0 :: Fq2} deriving (Eq, Show)
 data Fq12 = Fq12 {w1 :: Fq6, w0 :: Fq6} deriving (Eq, Show)
 
+-- | The field prime constant used in BLS12-381 is exported for reference.
+prime = 0x1a0111ea397fe69a4b1ba7b6434bacd764774b84f38512bf6730d2a0f6b0f6241eabfffeb153ffffb9feffffffffaaab
+
 
 -- Fields will implement `Num` along with these two functions
 class (Num a) => Field a where
   inv :: a -> a
   mul_nonres :: a -> a
-
-
--- | The field prime constant used in BLS12-381 is exported for reference.
-prime = 0x1a0111ea397fe69a4b1ba7b6434bacd764774b84f38512bf6730d2a0f6b0f6241eabfffeb153ffffb9feffffffffaaab
 
 
 -- Fq1 is 'standard' single-element finite field
@@ -100,6 +99,21 @@ instance Field Fq1 where
 
   -- All fields inverse of 0 arrive here
   inv (Fq1 a0) = if a0 == 0 then error "inverse of 0" else Fq1 (beea a0 prime 1 0 prime)
+
+
+-- Binary Extended Euclidean Algorithm (note that there are no divisions)
+-- See: Guide to Elliptic Curve Cryptography by Hankerson, Menezes, and Vanstone
+beea :: Integer -> Integer -> Integer -> Integer -> Integer -> Integer
+beea u v x1 x2 p
+  | not (u > 0 && v > 0) = error "beea operands u,v must be greater than zero"
+  | u == 1 = mod x1 p
+  | v == 1 = mod x2 p
+  | even u = if even x1 then beea (shiftR u 1) v (shiftR x1 1) x2 p
+                        else beea (shiftR u 1) v (shiftR (x1 + p) 1) x2 p
+  | even v = if even x2 then beea u (shiftR v 1) x1 (shiftR x2 1) p
+                        else beea u (shiftR v 1) x1 (shiftR (x2 + p) 1) p
+  | u >= v = beea (u - v) v (x1 - x2) x2 p
+  | u < v  = beea u (v - u) x1 (x2 - x1) p
 
 
 -- Fq2 is constructed with Fq1(u) / (u^2 - β) where β = -1.
@@ -184,21 +198,6 @@ instance Field Fq12 where
   inv (Fq12 a1 a0) = Fq12 (-a1 * factor) (a0 * factor)
     where
       factor = inv (a0 * a0 - mul_nonres (a1 * a1))
-
-
--- Binary Extended Euclidean Algorithm (note that there are no divisions)
--- See: Guide to Elliptic Curve Cryptography by Hankerson, Menezes, and Vanstone
-beea :: Integer -> Integer -> Integer -> Integer -> Integer -> Integer
-beea u v x1 x2 p
-  | not (u > 0 && v > 0) = error "beea operands u,v must be greater than zero"
-  | u == 1 = mod x1 p
-  | v == 1 = mod x2 p
-  | even u = if even x1 then beea (shiftR u 1) v (shiftR x1 1) x2 p
-                        else beea (shiftR u 1) v (shiftR (x1 + p) 1) x2 p
-  | even v = if even x2 then beea u (shiftR v 1) x1 (shiftR x2 1) p
-                        else beea u (shiftR v 1) x1 (shiftR (x2 + p) 1) p
-  | u >= v = beea (u - v) v (x1 - x2) x2 p
-  | u < v  = beea u (v - u) x1 (x2 - x1) p
 
 
 -- Note that Affine coordinates are used throughout for simplicity, despite performance hit
