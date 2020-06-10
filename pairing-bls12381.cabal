@@ -4,7 +4,7 @@ cabal-version: 1.12
 --
 -- see: https://github.com/sol/hpack
 --
--- hash: beb934ff6f037304d82f4110e33b1951a8168b80e6ff81df8369222fcb5adf92
+-- hash: b166967cd1544392d71622936cb07a63dea236a75239500e47ad2bb92c05658a
 
 name:           pairing-bls12381
 version:        0.1.0.0
@@ -44,7 +44,7 @@ executable pairing-bls12381-exe
       Paths_pairing_bls12381
   hs-source-dirs:
       app
-  ghc-options: -threaded -rtsopts -with-rtsopts=-N -Wall -Wcompat -Wincomplete-record-updates -Wincomplete-uni-patterns -Wredundant-constraints
+  ghc-options: -threaded -rtsopts -with-rtsopts=-N -Wall -Wcompat -Wincomplete-record-updates -Wincomplete-uni-patterns -Wredundant-constraints -O2
   build-depends:
       base >=4.7 && <5
     , pairing-bls12381
@@ -57,7 +57,7 @@ test-suite pairing-bls12381-test
       Paths_pairing_bls12381
   hs-source-dirs:
       test
-  ghc-options: -threaded -rtsopts -with-rtsopts=-N -Wall -Wcompat -Wincomplete-record-updates -Wincomplete-uni-patterns -Wredundant-constraints
+  ghc-options: -threaded -rtsopts -with-rtsopts=-N -Wall -Wcompat -Wincomplete-record-updates -Wincomplete-uni-patterns -Wredundant-constraints -O2
   build-depends:
       base >=4.7 && <5
     , pairing-bls12381

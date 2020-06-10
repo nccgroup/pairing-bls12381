@@ -33,6 +33,7 @@ executables:
     - -Wincomplete-record-updates
     - -Wincomplete-uni-patterns
     - -Wredundant-constraints
+    - -O2
     dependencies:
     - pairing-bls12381
 
@@ -49,6 +50,7 @@ tests:
     - -Wincomplete-record-updates
     - -Wincomplete-uni-patterns
     - -Wredundant-constraints
+    - -O2
     dependencies:
     - pairing-bls12381
     - tasty

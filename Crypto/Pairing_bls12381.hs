@@ -212,14 +212,14 @@ order = 0x73eda753299d7d483339d80809a1d80553bda402fffe5bfeffffffff00000001
 
 -- | The standard generator point for G1.
 g1Generator = Just (Affine (Fq1 0x17f1d3a73197d7942695638c4fa9ac0fc3688c4f9774b905a14e3a3f171bac586c55e83ff97a1aeffb3af00adb22c6bb)
-                     (Fq1 0x08b3f481e3aaa0f1a09e30ed741d8ae4fcf5e095d5d00af600db18cb2c04b3edd03cc744a2888ae40caa232946c5e7e1))
+                           (Fq1 0x08b3f481e3aaa0f1a09e30ed741d8ae4fcf5e095d5d00af600db18cb2c04b3edd03cc744a2888ae40caa232946c5e7e1))
 
 
 -- | The standard generator point for G2.
 g2Generator = Just (Affine (Fq2 (Fq1 0x13e02b6052719f607dacd3a088274f65596bd0d09920b61ab5da61bbdc7f5049334cf11213945d57e5ac7d055d042b7e)
-                          (Fq1 0x024aa2b2f08f0a91260805272dc51051c6e47ad4fa403b02b4510b647ae3d1770bac0326a805bbefd48056c8c121bdb8))
-                     (Fq2 (Fq1 0x0606c4a02ea734cc32acd2b02bc28b99cb3e287e85a763af267492ab572e99ab3f370d275cec1da1aaa9075ff05f79be)
-                          (Fq1 0x0ce5d527727d6e118cc9cdc6da2e351aadfd9baa8cbdd3a76d429a695160d12c923ac9cc3baca289e193548608b82801)))
+                                (Fq1 0x024aa2b2f08f0a91260805272dc51051c6e47ad4fa403b02b4510b647ae3d1770bac0326a805bbefd48056c8c121bdb8))
+                           (Fq2 (Fq1 0x0606c4a02ea734cc32acd2b02bc28b99cb3e287e85a763af267492ab572e99ab3f370d275cec1da1aaa9075ff05f79be)
+                                (Fq1 0x0ce5d527727d6e118cc9cdc6da2e351aadfd9baa8cbdd3a76d429a695160d12c923ac9cc3baca289e193548608b82801)))
 
 
 -- BLS12-381 curve(s) are E1: y^2 = x^3 + 4 and E2: y^2 = x^3 + 4(i+1)
@@ -228,16 +228,21 @@ isOnCurve PointAtInfinity = False
 isOnCurve a0 = ay a0^2 == (ax a0^3 + mul_nonres 4)  -- mul_nonres fixes constant for E2
 
 
+-- Check subgroup=r membership
+isInSubGroup :: (Field a, Eq a) => Point a -> Bool
+isInSubGroup p = pointMul order p == Just PointAtInfinity
+
+
 -- | Given @x@ and @y@, construct a valid point contained in G1.
 g1Point :: Integer -> Integer -> Maybe (Point Fq1)
-g1Point x y = if isOnCurve candidate then Just candidate else Nothing
+g1Point x y = if isOnCurve candidate && isInSubGroup candidate then Just candidate else Nothing
   where
     candidate = Affine (Fq1 (x `mod` prime)) (Fq1 (y `mod` prime))
 
 
 -- | Given @xi@, @x@, @yi@ and @y@, construct a valid point contained in G2.
 g2Point :: Integer -> Integer -> Integer -> Integer -> Maybe (Point Fq2)
-g2Point x1 x0 y1 y0 = if isOnCurve candidate then Just candidate else Nothing
+g2Point x1 x0 y1 y0 = if isOnCurve candidate && isInSubGroup candidate then Just candidate else Nothing
   where
     candidate = Affine (Fq2 (Fq1 (x1 `mod` prime)) (Fq1 (x0 `mod` prime)))
                        (Fq2 (Fq1 (y1 `mod` prime)) (Fq1 (y0 `mod` prime)))
@@ -247,11 +252,10 @@ g2Point x1 x0 y1 y0 = if isOnCurve candidate then Just candidate else Nothing
 pointAdd :: (Field a, Eq a) => Point a -> Point a -> Point a
 pointAdd PointAtInfinity q = q
 pointAdd p PointAtInfinity = p
-pointAdd p q
-  | p == q = pointDouble p
 pointAdd Affine {ax=x1, ay=y1} Affine {ax=x2, ay=y2}
+  | x1 == x2 && y1 == y2 = pointDouble Affine {ax=x1, ay=y1}
   | x1 == x2 && y1 /= y2 = PointAtInfinity
-pointAdd Affine {ax=x1, ay=y1} Affine {ax=x2, ay=y2} = Affine {ax=x3, ay=y3}
+  | otherwise = Affine {ax=x3, ay=y3}
   where
     slope = (y2 - y1) * inv (x2 - x1)
     x3 = slope * slope - x1 - x2
@@ -263,13 +267,12 @@ pointDouble :: (Field a) => Point a -> Point a
 pointDouble PointAtInfinity = PointAtInfinity
 pointDouble Affine {ax=x1, ay=y1} = Affine {ax=x3, ay=y3}
   where
-    x1_squared = x1 * x1
-    slope = (3 * x1_squared) * inv (2 * y1)
+    slope = (3 * x1^2) * inv (2 * y1)
     x3 = slope * slope - x1 - x1
     y3 = slope * (x1 - x3) - y1
 
 
--- | Multiply a positive integer and valid point in either G1 or G2.
+-- | Multiply a positive integer scalar and valid point in either G1 or G2.
 pointMul :: (Field a, Eq a) => Integer -> Point a -> Maybe (Point a)
 pointMul scalar base
   | isOnCurve base && scalar > 0 = Just (pointMul' scalar base PointAtInfinity)
@@ -288,39 +291,39 @@ pointMul' scalar base accum
 
 -- Untwist point on E2 for pairing calculation
 untwist :: Point Fq2 -> Point Fq12
-untwist Affine {ax=x1, ay=y1} = Affine {ax=wide_x, ay=wide_y}
+untwist Affine {ax=x1, ay=y1} = Affine {ax=wideX, ay=wideY}
   where
     root = Fq6 0 1 0
     wsq = inv (Fq12 0 root)
     wcu = inv (Fq12 root 0)
-    wide_x = Fq12 0 (Fq6 0 0 x1) * wsq
-    wide_y = Fq12 0 (Fq6 0 0 y1) * wcu
+    wideX = Fq12 0 (Fq6 0 0 x1) * wsq
+    wideY = Fq12 0 (Fq6 0 0 y1) * wcu
 
 
 doubleEval :: Point Fq2 -> Point Fq1 -> Fq12
 doubleEval r p = fromInteger (t0 (ay p)) - (fromInteger (t0 (ax p)) * slope) - v
   where
-    wide_r = untwist r
-    rx2 = ax wide_r^2
-    slope = (3 * rx2) * inv (2 * ay wide_r)
-    v = ay wide_r - slope * ax wide_r
+    wideR = untwist r
+    rx2 = ax wideR^2
+    slope = (3 * rx2) * inv (2 * ay wideR)
+    v = ay wideR - slope * ax wideR
 
 
 -- Used in miller loop when current bit index is true
 addEval :: Point Fq2 -> Point Fq2 -> Point Fq1 -> Fq12
-addEval r q p = if (ax wide_r == ax wide_q) && (ay wide_r == - ay wide_q)
-                       then fromInteger (t0 (ax p)) - ax wide_r
-                       else addEval' wide_r wide_q p
+addEval r q p = if (ax wideR == ax wideQ) && (ay wideR == - ay wideQ)
+                       then fromInteger (t0 (ax p)) - ax wideR
+                       else addEval' wideR wideQ p
   where
-    wide_r = untwist r
-    wide_q = untwist q
+    wideR = untwist r
+    wideQ = untwist q
 
 
 addEval' :: Point Fq12 -> Point Fq12 -> Point Fq1 -> Fq12
-addEval' wide_r wide_q p = fromInteger (t0 (ay p)) - (fromInteger (t0 (ax p)) * slope) - v
+addEval' wideR wideQ p = fromInteger (t0 (ay p)) - (fromInteger (t0 (ax p)) * slope) - v
   where
-    slope = (ay wide_q - ay wide_r) * inv (ax wide_q - ax wide_r)
-    v = ((ay wide_q * ax wide_r) - (ay wide_r * ax wide_q)) * inv (ax wide_r - ax wide_q)
+    slope = (ay wideQ - ay wideR) * inv (ax wideQ - ax wideR)
+    v = ((ay wideQ * ax wideR) - (ay wideR * ax wideQ)) * inv (ax wideR - ax wideQ)
 
 
 -- Classic Miller loop for Ate pairing
@@ -351,10 +354,12 @@ pow' a0 exp result
   where accum = pow' a0 (shiftR exp 1) result
 
 
--- | Pairing calculation for a point in G1 and another point in G2.
+-- | Pairing calculation for a valid point in G1 and another valid point in G2.
 pairing :: Point Fq1 -> Point Fq2 -> Maybe Fq12
 pairing p_g1 q_g2
-  | isOnCurve p_g1 && isOnCurve q_g2 = Just (pow' (miller p_g1 q_g2) (div (prime^12 - 1) order) 1)
+  | p_g1 == PointAtInfinity || q_g2 == PointAtInfinity = Nothing
+  | isOnCurve p_g1 && isInSubGroup p_g1 && isOnCurve q_g2 && isInSubGroup q_g2
+      = Just (pow' (miller p_g1 q_g2) (div (prime^12 - 1) order) 1)
   | otherwise = Nothing
 
 
