@@ -6,25 +6,27 @@ License     : BSD-3
 Maintainer  : eric.schorn@nccgroup.com
 Stability   : experimental
 
-Implements the BLS12-381 pairing calculation per https://electriccoin.co/blog/new-snark-curve/.
+Implements the BLS12-381 point generation and pairing calculation per
+<https://electriccoin.co/blog/new-snark-curve/>.
 This code has no dependencies and utilizes no language options.
 
-This code is for strictly educational purposes: simplicity and clarity are the primary
-goals, so the code may be incomplete, inefficient, incorrect and/or insecure. Specifically,
-both the algorithms within the code and (the use of) Haskell's arbitrary-precision integers
-are clearly not constant-time and thus introduce timing side channels. This code has not
-undergone a security audit; use at your own risk.
+This code is for strictly educational purposes: simplicity and clarity are the
+primary goals, so the code may be incomplete, inefficient, incorrect and/or insecure.
+Specifically, both the algorithms within the code and (the use of) Haskell's
+arbitrary-precision integers are clearly not constant-time and thus introduce timing
+side channels. This code has not undergone a security audit; use at your own risk.
 
-Note that field element constructors are not exported. Points can either be constructed
-directly via the `g1Point` or `g2Point` functions, or they can be constructed from the
-`pointMul` function given a scalar and typically either the `g1Generator` or `g2Generator`
-points. Points are then used in the `pairing` function which returns `Fq12` elements that
-can be tested for equality, shown or used in more elaborate calculations with the exported
-Fq12 `*` operator (see example below).
+Note that field element constructors are not exported. Points can either be
+constructed directly via the `g1Point` or `g2Point` functions, or they can be
+constructed from the `pointMul` function given a scalar and typically either the
+`g1Generator` or `g2Generator` points. Points are then used in the `pairing` function
+which returns `Fq12` elements that can be tested for equality, shown or used in more
+elaborate calculations with the exported Fq12 `*` operator (see example below).
 
-Coordinates and Points are internally validated to be on-curve. As such, the `g1Point`,
-`g1Generator`, `g2Point`, `g2Generator` and `pointMul` functions all return `Maybe Points`
-which will need to be unwrapped prior to use in the `pairing` function.
+Coordinates and Points are internally validated to be on-curve. As such, the
+`g1Point`, `g1Generator`, `g2Point`, `g2Generator` and `pointMul` functions all
+return `Maybe Points` which will need to be unwrapped prior to use in the `pairing`
+function.
 
 __Example usage:__
 
@@ -50,7 +52,6 @@ where g1 and g2 are group generators. Below is a @ghci@ interpreter session.
 *Pairing_bls12381> (==) \<$\> leftSide \<*\> rightSide
 Just True@
 -}
-
 
 module Pairing_bls12381 (g1Point, g2Point, g1Generator, g2Generator, pointMul,
                          pairing, prime, order, smokeTest, Num( (*) ) ) where
@@ -80,9 +81,9 @@ class (Num a) => Field a where
 -- Fq1 is 'standard' single-element finite field
 instance Num Fq1 where
 
-  (+) (Fq1 a0) (Fq1 b0) = Fq1 ((a0 + b0) `mod` prime)  -- Obvious perf enhancement here..
+  (+) (Fq1 a0) (Fq1 b0) = Fq1 ((a0 + b0) `mod` prime)  -- Perf opportunity here..
 
-  (-) (Fq1 a0) (Fq1 b0) = Fq1 ((a0 - b0) `mod` prime)  -- ..and here; stick with simplicity
+  (-) (Fq1 a0) (Fq1 b0) = Fq1 ((a0 - b0) `mod` prime)  -- ..and here; simplicity
 
   (*) (Fq1 a0) (Fq1 b0) = Fq1 ((a0 * b0) `mod` prime)
 
@@ -98,7 +99,7 @@ instance Field Fq1 where
   mul_nonres a0 = a0
 
   -- All fields inverse of 0 arrive here
-  inv (Fq1 a0) = if a0 == 0 then error "inverse of 0" else Fq1 (beea a0 prime 1 0 prime)
+  inv (Fq1 a0) = if a0 == 0 then error "inv of 0" else Fq1 (beea a0 prime 1 0 prime)
 
 
 -- Binary Extended Euclidean Algorithm (note that there are no divisions)
@@ -182,7 +183,8 @@ instance Num Fq12 where
 
   (-) (Fq12 a1 a0) (Fq12 b1 b0) = Fq12 (a1 - b1) (a0 - b0)
 
-  (*) (Fq12 a1 a0) (Fq12 b1 b0) = Fq12 (a1 * b0 + a0 * b1) (a0 * b0 + mul_nonres (a1 * b1))
+  (*) (Fq12 a1 a0) (Fq12 b1 b0) =
+    Fq12 (a1 * b0 + a0 * b1) (a0 * b0 + mul_nonres (a1 * b1))
 
   fromInteger a0 = Fq12 0 (fromInteger a0)
 
@@ -200,7 +202,7 @@ instance Field Fq12 where
       factor = inv (a0 * a0 - mul_nonres (a1 * a1))
 
 
--- Note that Affine coordinates are used throughout for simplicity, despite performance hit
+-- Note that Affine coordinates are used throughout for simplicity, despite perf hit
 data Point a = Affine {ax :: a, ay :: a}
              | PointAtInfinity deriving (Eq, Show)
 
@@ -224,7 +226,7 @@ g2Generator = Just (Affine (Fq2 (Fq1 0x13e02b6052719f607dacd3a088274f65596bd0d09
 -- BLS12-381 curve(s) are E1: y^2 = x^3 + 4 and E2: y^2 = x^3 + 4(i+1)
 isOnCurve :: (Field a, Eq a) => Point a -> Bool
 isOnCurve PointAtInfinity = False
-isOnCurve a0 = ay a0^2 == (ax a0^3 + mul_nonres 4)  -- mul_nonres fixes constant for E2
+isOnCurve a0 = ay a0^2 == (ax a0^3 + mul_nonres 4)  -- mul_nonres fixes const for E2
 
 
 -- Check subgroup=r membership
@@ -234,14 +236,16 @@ isInSubGroup p = pointMul order p == Just PointAtInfinity
 
 -- | Given @x@ and @y@, construct a valid point contained in G1.
 g1Point :: Integer -> Integer -> Maybe (Point Fq1)
-g1Point x y = if isOnCurve candidate && isInSubGroup candidate then Just candidate else Nothing
+g1Point x y = if isOnCurve candidate && isInSubGroup candidate
+              then Just candidate else Nothing
   where
     candidate = Affine (Fq1 (x `mod` prime)) (Fq1 (y `mod` prime))
 
 
 -- | Given @xi@, @x@, @yi@ and @y@, construct a valid point contained in G2.
 g2Point :: Integer -> Integer -> Integer -> Integer -> Maybe (Point Fq2)
-g2Point x1 x0 y1 y0 = if isOnCurve candidate && isInSubGroup candidate then Just candidate else Nothing
+g2Point x1 x0 y1 y0 = if isOnCurve candidate && isInSubGroup candidate
+                      then Just candidate else Nothing
   where
     candidate = Affine (Fq2 (Fq1 (x1 `mod` prime)) (Fq1 (x0 `mod` prime)))
                        (Fq2 (Fq1 (y1 `mod` prime)) (Fq1 (y0 `mod` prime)))
@@ -311,15 +315,15 @@ doubleEval r p = fromInteger (t0 (ay p)) - (fromInteger (t0 (ax p)) * slope) - v
 -- Used in miller loop when current bit index is true
 addEval :: Point Fq2 -> Point Fq2 -> Point Fq1 -> Fq12
 addEval r q p = if (ax wideR == ax wideQ) && (ay wideR == - ay wideQ)
-                       then fromInteger (t0 (ax p)) - ax wideR
-                       else addEval' wideR wideQ p
+                then fromInteger (t0 (ax p)) - ax wideR
+                else addEval' wideR wideQ p
   where
     wideR = untwist r
     wideQ = untwist q
 
 
 addEval' :: Point Fq12 -> Point Fq12 -> Point Fq1 -> Fq12
-addEval' wideR wideQ p = fromInteger (t0 (ay p)) - (fromInteger (t0 (ax p)) * slope) - v
+addEval' wideR wideQ p = fromInteger (t0 (ay p))-(fromInteger (t0 (ax p)) * slope)-v
   where
     slope = (ay wideQ - ay wideR) * inv (ax wideQ - ax wideR)
     v = ((ay wideQ * ax wideR) - (ay wideR * ax wideQ)) * inv (ax wideR - ax wideQ)
@@ -331,20 +335,21 @@ miller p q = miller' p q q iterations 1
   where
     iterations = tail $ reverse $
       unfoldr (\b -> if b == (0 :: Integer) then Nothing
-                                            else Just(odd b, shiftR b 1)) 0xd201000000010000
+                     else Just(odd b, shiftR b 1)) 0xd201000000010000
 
 
 -- Double and add helper for miller
 miller' :: Point Fq1 -> Point Fq2 -> Point Fq2 -> [Bool] -> Fq12 -> Fq12
 miller' p q r [] result = result
-miller' p q r (i:iters) result = if i then miller' p q (pointAdd doubleR q) iters (accum * addEval doubleR q p)
-                                      else miller' p q doubleR iters accum
+miller' p q r (i:iters) result =
+  if i then miller' p q (pointAdd doubleR q) iters (accum * addEval doubleR q p)
+       else miller' p q doubleR iters accum
   where
     accum = result^2 * doubleEval r p
     doubleR = pointDouble r
 
 
--- Used for the final exponentiation; opportunity for further performance optimization
+-- Used for the final exponentiation; opportunity for further perf optimization
 pow' :: (Field a) => a -> Integer -> a -> a
 pow' a0 exp result
   | exp <= 1 = a0

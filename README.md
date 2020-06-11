@@ -115,11 +115,16 @@ Let's demonstrate the following equality (note the constants shifting positions)
 
 ## References
 
-* Pairings for beginners, Craig Costello, <http://www.craigcostello.com.au/pairings/PairingsForBeginners.pdf>
-* On the Implementation of Pairing-Based Cryptography, Ben Lynn PhD Dissertation, <https://crypto.stanford.edu/pbc/thesis.html>
-* BLS12-381: New zk-SNARK Elliptic Curve Construction, Sean Bowe of Zcash, <https://electriccoin.co/blog/new-snark-curve/>
-* BLS12-381 For The Rest Of Us, <https://hackmd.io/@benjaminion/bls12-381>
-* Pairing-Friendly Curves, draft-irtf-cfrg-pairing-friendly-curves-04, <https://datatracker.ietf.org/doc/draft-irtf-cfrg-pairing-friendly-curves/>
-* Constructing Tower Extensions of Finite Fields for Implementation of Pairing-Based Cryptography, <https://eprint.iacr.org/2009/556.pdf>
+* Pairings for beginners, Craig Costello, 
+  <http://www.craigcostello.com.au/pairings/PairingsForBeginners.pdf>
+* On the Implementation of Pairing-Based Cryptography, Ben Lynn PhD 
+  Dissertation, <https://crypto.stanford.edu/pbc/thesis.html>
+* BLS12-381: New zk-SNARK Elliptic Curve Construction, Sean Bowe of 
+  Zcash, <https://electriccoin.co/blog/new-snark-curve/>
+* BLS12-381 For The Rest Of Us, Ben Edgington, <https://hackmd.io/@benjaminion/bls12-381>
+* Pairing-Friendly Curves, draft-irtf-cfrg-pairing-friendly-curves-04,
+  <https://datatracker.ietf.org/doc/draft-irtf-cfrg-pairing-friendly-curves/>
+* Constructing Tower Extensions of Finite Fields for Implementation of Pairing-Based 
+  Cryptography, Naomi Benger and Michael Scott, <https://eprint.iacr.org/2009/556.pdf>
 
 Copyright (c) 2020 Eric Schorn, NCC Group Plc; Provided under the BSD-3 License.
