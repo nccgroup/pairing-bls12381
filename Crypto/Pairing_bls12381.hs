@@ -10,23 +10,24 @@ Implements the BLS12-381 point generation and pairing calculation per
 <https://electriccoin.co/blog/new-snark-curve/>.
 This code has no dependencies and utilizes no language options.
 
-This code is for strictly educational purposes: simplicity and clarity are the
+This code is for strictly experimental purposes: simplicity and clarity are the
 primary goals, so the code may be incomplete, inefficient, incorrect and/or insecure.
 Specifically, both the algorithms within the code and (the use of) Haskell's
 arbitrary-precision integers are clearly not constant-time and thus introduce timing
 side channels. This code has not undergone a security audit; use at your own risk.
 
-Note that field element constructors are not exported. Points can either be
+Note that field element constructors are not exported. Valid points can either be
 constructed directly via the `g1Point` or `g2Point` functions, or they can be
 constructed from the `pointMul` function given a scalar and typically either the
 `g1Generator` or `g2Generator` points. Points are then used in the `pairing` function
 which returns `Fq12` elements that can be tested for equality, shown or used in more
-elaborate calculations with the exported Fq12 `*` operator (see example below).
+elaborate calculations (involving multiplication) with the exported Fq12 `*` operator
+(see the example below).
 
-Coordinates and Points are internally validated to be on-curve. As such, the
-`g1Point`, `g1Generator`, `g2Point`, `g2Generator` and `pointMul` functions all
-return `Maybe Points` which will need to be unwrapped prior to use in the `pairing`
-function.
+Coordinates are forced into Zp and Points are internally validated to be on-curve. As
+such, the `g1Point`, `g1Generator`, `g2Point`, `g2Generator` and `pointMul` functions
+all return `Maybe Points` which will need to be unwrapped prior to use in the
+`pairing` function.
 
 __Example usage:__
 
@@ -34,7 +35,8 @@ Demonstrate the following equality (note the constants shifting positions):
 
 @pairing((12+34)*56*g1, 78*g2) == pairing(78*g1, 12*56*g2) * pairing(78*g1, 34*56*g2)@
 
-where g1 and g2 are group generators. Below is a @ghci@ interpreter session.
+where g1 and g2 are the standard group generators. Below is an example @ghci@
+interpreter session.
 
 @\$ ghci Crypto\/Pairing_bls12381.hs
 \
@@ -62,11 +64,12 @@ import Data.List (unfoldr)
 import Control.Monad (join)
 
 
--- Tower extension fields. See https://eprint.iacr.org/2009/556.pdf
+-- Tower extension fields in t, u, v and w. See https://eprint.iacr.org/2009/556.pdf
 newtype Fq1 = Fq1 {t0 :: Integer} deriving (Eq, Show)
 data Fq2 = Fq2 {u1 :: Fq1, u0 :: Fq1} deriving (Eq, Show)
 data Fq6 = Fq6 {v2 :: Fq2, v1 :: Fq2, v0 :: Fq2} deriving (Eq, Show)
 data Fq12 = Fq12 {w1 :: Fq6, w0 :: Fq6} deriving (Eq, Show)
+
 
 -- | The field prime constant used in BLS12-381 is exported for reference.
 prime = 0x1a0111ea397fe69a4b1ba7b6434bacd764774b84f38512bf6730d2a0f6b0f6241eabfffeb153ffffb9feffffffffaaab
@@ -83,7 +86,7 @@ instance Num Fq1 where
 
   (+) (Fq1 a0) (Fq1 b0) = Fq1 ((a0 + b0) `mod` prime)  -- Perf opportunity here..
 
-  (-) (Fq1 a0) (Fq1 b0) = Fq1 ((a0 - b0) `mod` prime)  -- ..and here; simplicity
+  (-) (Fq1 a0) (Fq1 b0) = Fq1 ((a0 - b0) `mod` prime)  -- ..here; favoring simplicity
 
   (*) (Fq1 a0) (Fq1 b0) = Fq1 ((a0 * b0) `mod` prime)
 
@@ -98,7 +101,7 @@ instance Field Fq1 where
 
   mul_nonres a0 = a0
 
-  -- All fields inverse of 0 arrive here
+  -- All fields inverse (incl 0) arrive here
   inv (Fq1 a0) = if a0 == 0 then error "inv of 0" else Fq1 (beea a0 prime 1 0 prime)
 
 
@@ -202,7 +205,7 @@ instance Field Fq12 where
       factor = inv (a0 * a0 - mul_nonres (a1 * a1))
 
 
--- Note that Affine coordinates are used throughout for simplicity, despite perf hit
+-- Affine coordinates are used throughout for simplicity
 data Point a = Affine {ax :: a, ay :: a}
              | PointAtInfinity deriving (Eq, Show)
 
@@ -223,13 +226,13 @@ g2Generator = Just (Affine (Fq2 (Fq1 0x13e02b6052719f607dacd3a088274f65596bd0d09
                                 (Fq1 0x0ce5d527727d6e118cc9cdc6da2e351aadfd9baa8cbdd3a76d429a695160d12c923ac9cc3baca289e193548608b82801)))
 
 
--- BLS12-381 curve(s) are E1: y^2 = x^3 + 4 and E2: y^2 = x^3 + 4(i+1)
+-- BLS12-381 curve(s) are E1: y^2 = x^3 + 4 and E2: y^2 = x^3 + 4(u+1)
 isOnCurve :: (Field a, Eq a) => Point a -> Bool
 isOnCurve PointAtInfinity = False
-isOnCurve a0 = ay a0^2 == (ax a0^3 + mul_nonres 4)  -- mul_nonres fixes const for E2
+isOnCurve a0 = ay a0^2 == (ax a0^3 + mul_nonres 4)
 
 
--- Check subgroup=r membership
+-- Check subgroup=order membership
 isInSubGroup :: (Field a, Eq a) => Point a -> Bool
 isInSubGroup p = pointMul order p == Just PointAtInfinity
 
@@ -239,7 +242,7 @@ g1Point :: Integer -> Integer -> Maybe (Point Fq1)
 g1Point x y = if isOnCurve candidate && isInSubGroup candidate
               then Just candidate else Nothing
   where
-    candidate = Affine (Fq1 (x `mod` prime)) (Fq1 (y `mod` prime))
+    candidate = Affine (fromInteger x) (fromInteger y)
 
 
 -- | Given @xi@, @x@, @yi@ and @y@, construct a valid point contained in G2.
@@ -247,8 +250,8 @@ g2Point :: Integer -> Integer -> Integer -> Integer -> Maybe (Point Fq2)
 g2Point x1 x0 y1 y0 = if isOnCurve candidate && isInSubGroup candidate
                       then Just candidate else Nothing
   where
-    candidate = Affine (Fq2 (Fq1 (x1 `mod` prime)) (Fq1 (x0 `mod` prime)))
-                       (Fq2 (Fq1 (y1 `mod` prime)) (Fq1 (y0 `mod` prime)))
+    candidate = Affine (Fq2 (fromInteger x1) (fromInteger x0))
+                       (Fq2 (fromInteger y1) (fromInteger y0))
 
 
 -- Add affine curve points; handle all corner cases
@@ -261,7 +264,7 @@ pointAdd Affine {ax=x1, ay=y1} Affine {ax=x2, ay=y2}
   | otherwise = Affine {ax=x3, ay=y3}
   where
     slope = (y2 - y1) * inv (x2 - x1)
-    x3 = slope * slope - x1 - x2
+    x3 = slope^2 - x1 - x2
     y3 = slope * (x1 - x3) - y1
 
 
@@ -271,7 +274,7 @@ pointDouble PointAtInfinity = PointAtInfinity
 pointDouble Affine {ax=x1, ay=y1} = Affine {ax=x3, ay=y3}
   where
     slope = (3 * x1^2) * inv (2 * y1)
-    x3 = slope * slope - x1 - x1
+    x3 = slope^2 - x1 - x1
     y3 = slope * (x1 - x3) - y1
 
 
@@ -323,7 +326,7 @@ addEval r q p = if (ax wideR == ax wideQ) && (ay wideR == - ay wideQ)
 
 
 addEval' :: Point Fq12 -> Point Fq12 -> Point Fq1 -> Fq12
-addEval' wideR wideQ p = fromInteger (t0 (ay p))-(fromInteger (t0 (ax p)) * slope)-v
+addEval' wideR wideQ p = fromInteger (t0 (ay p)) - (fromInteger (t0 (ax p)) * slope) - v
   where
     slope = (ay wideQ - ay wideR) * inv (ax wideQ - ax wideR)
     v = ((ay wideQ * ax wideR) - (ay wideR * ax wideQ)) * inv (ax wideR - ax wideQ)
@@ -333,7 +336,7 @@ addEval' wideR wideQ p = fromInteger (t0 (ay p))-(fromInteger (t0 (ax p)) * slop
 miller :: Point Fq1 -> Point Fq2 -> Fq12
 miller p q = miller' p q q iterations 1
   where
-    iterations = tail $ reverse $
+    iterations = tail $ reverse $  -- list of true/false per bits of operand
       unfoldr (\b -> if b == (0 :: Integer) then Nothing
                      else Just(odd b, shiftR b 1)) 0xd201000000010000
 
@@ -353,8 +356,8 @@ miller' p q r (i:iters) result =
 pow' :: (Field a) => a -> Integer -> a -> a
 pow' a0 exp result
   | exp <= 1 = a0
-  | even exp = accum * accum
-  | otherwise = accum * accum * a0
+  | even exp = accum^2
+  | otherwise = accum^2 * a0
   where accum = pow' a0 (shiftR exp 1) result
 
 
