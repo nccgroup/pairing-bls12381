@@ -9,7 +9,7 @@ import Pairing_bls12381
 
 main :: IO ()
 main = defaultMain $ testGroup "\nRunning Tests" [huTstSmokeTest, huTstCurve,
-  huTstPairingPts, huTstPairingMul, huTstPairingGen]
+  huTstPairingPts, huTstPointNeg, huTstPairingMul, huTstPairingAgg, huTstPairingGen]
 
 
 huTstSmokeTest :: TestTree
@@ -29,6 +29,27 @@ huTstCurve = HU.testCase "huTstCurve" $
                 0x14906db96db027e17449a1323198cfccde4d15456ce09f3fef4c7baed5495463b7cc750300e0e2918d5680d97a567122
                 0x0e82e52250625e4c0864645fba3b36e24c36dbc3d4bae0ca40b0c28b0e3780bf6b8d022c032727e8195e2a2b547be84b
                 0x0f240b0ffee3ac62cd5576f012a92cd78c9ded14c11c7637caff4daf885c9a258783a7aef4dc1815737a5b606e03868e)
+
+
+huTstPointNeg :: TestTree
+huTstPointNeg = HU.testCase "huTstPointNeg" $
+  do
+    let g1p31 = g1Generator >>= pointMul 31
+    let g1p10 = g1Generator >>= pointMul 10
+    let g1n21 = g1Generator >>= pointMul (-21)
+    let sum10 = pointAdd <$> g1p31 <*> g1n21
+    HU.assertBool "bad pointNeg 1" (sum10 == g1p10)
+    let g1n30 = g1Generator >>= pointMul (-30)
+    let s1um1 = pointAdd <$> g1p31 <*> g1n30
+    HU.assertBool "bad pointNeg 2" (g1Generator == s1um1)
+    let g2p31 = g2Generator >>= pointMul 31
+    let g2p10 = g2Generator >>= pointMul 10
+    let g2n21 = g2Generator >>= pointMul (-21)
+    let s2um10 = pointAdd <$> g2p31 <*> g2n21
+    HU.assertBool "bad pointNeg 3" (s2um10 == g2p10)
+    let g2n30 = g2Generator >>= pointMul (-30)
+    let s2um1 = pointAdd <$> g2p31 <*> g2n30
+    HU.assertBool "bad pointNeg 4" (g2Generator == s2um1)
 
 
 huTstPairingPts :: TestTree
@@ -56,7 +77,7 @@ huTstPairingMul = HU.testCase "huTstPairingMul" $
   do
     let p_12p34m56 = g1Generator >>= pointMul ((12 + 34) * 56)
     let q_78 = g2Generator >>= pointMul 78
-    let leftSide =   Control.Monad.join (pairing <$> p_12p34m56 <*> q_78)
+    let leftSide = Control.Monad.join (pairing <$> p_12p34m56 <*> q_78)
     let p_78 = g1Generator >>= pointMul 78
     let q_12m56 = g2Generator >>= pointMul (12 * 56)
     let q_34m56 = g2Generator >>= pointMul (34 * 56)
@@ -64,6 +85,23 @@ huTstPairingMul = HU.testCase "huTstPairingMul" $
     let pair3 = join (pairing <$> p_78 <*> q_34m56)
     let rightSide = (*) <$> pair2 <*> pair3
     HU.assertBool "bad pairing mul" (((==) <$> leftSide <*> rightSide) == Just True)
+
+
+huTstPairingAgg :: TestTree
+huTstPairingAgg = HU.testCase "huTstPairingAgg" $
+  do
+    let p_12p34p56 = g1Generator >>= pointMul (12 + 34 + 56)
+    let q_78 = g2Generator >>= pointMul 78
+    let leftSide = Control.Monad.join (pairing <$> p_12p34p56 <*> q_78)
+    let p_78 = g1Generator >>= pointMul 78
+    let q_12 = g2Generator >>= pointMul 12
+    let q_34 = g2Generator >>= pointMul 34
+    let q_56 = g2Generator >>= pointMul 56
+    let q_12p34 = pointAdd <$> q_12 <*> q_34
+    let pair2 = join (pairing <$> p_78 <*> q_12p34)
+    let pair3 = join (pairing <$> p_78 <*> q_56)
+    let rightSide = (*) <$> pair2 <*> pair3
+    HU.assertBool "bad pairing agg" (((==) <$> leftSide <*> rightSide) == Just True)
 
 
 huTstPairingGen :: TestTree

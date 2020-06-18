@@ -10,11 +10,11 @@ Implements the BLS12-381 point generation and pairing calculation per
 <https://electriccoin.co/blog/new-snark-curve/>.
 This code has no dependencies and utilizes no language options.
 
-This code is for strictly experimental purposes: simplicity and clarity are the
-primary goals, so the code may be incomplete, inefficient, incorrect and/or insecure.
-Specifically, both the algorithms within the code and (the use of) Haskell's
-arbitrary-precision integers are clearly not constant-time and thus introduce timing
-side channels. This code has not undergone a security audit; use at your own risk.
+This code is for experimental purposes: simplicity and clarity are the primary goals,
+so the code may be incomplete, inefficient, incorrect and/or insecure. Specifically,
+both the algorithms within the code and (the use of) Haskell's arbitrary-precision
+integers are clearly not constant-time and thus introduce timing side channels. This
+code has not undergone a security audit; use at your own risk.
 
 Note that field element constructors are not exported. Valid points can either be
 constructed directly via the `g1Point` or `g2Point` functions, or they can be
@@ -55,8 +55,8 @@ interpreter session.
 Just True@
 -}
 
-module Pairing_bls12381 (g1Point, g2Point, g1Generator, g2Generator, pointMul,
-                         pairing, prime, order, smokeTest, Num( (*) ) ) where
+module Pairing_bls12381 (g1Point, g2Point, g1Generator, g2Generator, pointMul, pointAdd,
+                         pairing, fieldPrime, groupOrder, smokeTest, Num( (*) ) ) where
 
 
 import Data.Bits (shiftR)
@@ -72,25 +72,26 @@ data Fq12 = Fq12 {w1 :: Fq6, w0 :: Fq6} deriving (Eq, Show)
 
 
 -- | The field prime constant used in BLS12-381 is exported for reference.
-prime = 0x1a0111ea397fe69a4b1ba7b6434bacd764774b84f38512bf6730d2a0f6b0f6241eabfffeb153ffffb9feffffffffaaab
+fieldPrime :: Integer
+fieldPrime = 0x1a0111ea397fe69a4b1ba7b6434bacd764774b84f38512bf6730d2a0f6b0f6241eabfffeb153ffffb9feffffffffaaab
 
 
 -- Fields will implement `Num` along with these two functions
 class (Num a) => Field a where
-  inv :: a -> a
-  mul_nonres :: a -> a
+  inv :: a -> a         -- Multiplicative inverse
+  mul_nonres :: a -> a  -- Multiply by non-reducible polynomial
 
 
 -- Fq1 is 'standard' single-element finite field
 instance Num Fq1 where
 
-  (+) (Fq1 a0) (Fq1 b0) = Fq1 ((a0 + b0) `mod` prime)  -- Perf opportunity here..
+  (+) (Fq1 a0) (Fq1 b0) = Fq1 ((a0 + b0) `mod` fieldPrime)
 
-  (-) (Fq1 a0) (Fq1 b0) = Fq1 ((a0 - b0) `mod` prime)  -- ..here; favoring simplicity
+  (-) (Fq1 a0) (Fq1 b0) = Fq1 ((a0 - b0) `mod` fieldPrime)
 
-  (*) (Fq1 a0) (Fq1 b0) = Fq1 ((a0 * b0) `mod` prime)
+  (*) (Fq1 a0) (Fq1 b0) = Fq1 ((a0 * b0) `mod` fieldPrime)
 
-  fromInteger a0 = Fq1 (a0 `mod` prime)
+  fromInteger a0 = Fq1 (a0 `mod` fieldPrime)
 
   abs = error "not needed/implemented for Fq1"
 
@@ -102,7 +103,7 @@ instance Field Fq1 where
   mul_nonres a0 = a0
 
   -- All fields inverse (incl 0) arrive here
-  inv (Fq1 a0) = if a0 == 0 then error "inv of 0" else Fq1 (beea a0 prime 1 0 prime)
+  inv (Fq1 a0) = if a0 == 0 then error "inv of 0" else Fq1 (beea a0 fieldPrime 1 0 fieldPrime)
 
 
 -- Binary Extended Euclidean Algorithm (note that there are no divisions)
@@ -127,6 +128,7 @@ instance Num Fq2 where
 
   (-) (Fq2 a1 a0) (Fq2 b1 b0) = Fq2 (a1 - b1) (a0 - b0)
 
+  -- Opportunity for Karatsuba optimization: https://en.wikipedia.org/wiki/Karatsuba_algorithm
   (*) (Fq2 a1 a0) (Fq2 b1 b0) = Fq2 (a1 * b0 + a0 * b1) (a0 * b0 - a1 * b1)
 
   fromInteger a0 = Fq2 0 (fromInteger a0)
@@ -152,6 +154,7 @@ instance Num Fq6 where
 
   (-) (Fq6 a2 a1 a0) (Fq6 b2 b1 b0) = Fq6 (a2 - b2) (a1 - b1) (a0 - b0)
 
+  -- Opportunity for Toom-Cook optimization: https://en.wikipedia.org/wiki/Toom%E2%80%93Cook_multiplication
   (*) (Fq6 a2 a1 a0) (Fq6 b2 b1 b0) = Fq6 t2 (t1 + t4) (t0 + t3)
     where
       t0 = a0 * b0
@@ -186,8 +189,8 @@ instance Num Fq12 where
 
   (-) (Fq12 a1 a0) (Fq12 b1 b0) = Fq12 (a1 - b1) (a0 - b0)
 
-  (*) (Fq12 a1 a0) (Fq12 b1 b0) =
-    Fq12 (a1 * b0 + a0 * b1) (a0 * b0 + mul_nonres (a1 * b1))
+  -- Opportunity for Karatsuba optimization: https://en.wikipedia.org/wiki/Karatsuba_algorithm
+  (*) (Fq12 a1 a0) (Fq12 b1 b0) = Fq12 (a1 * b0 + a0 * b1) (a0 * b0 + mul_nonres (a1 * b1))
 
   fromInteger a0 = Fq12 0 (fromInteger a0)
 
@@ -211,15 +214,18 @@ data Point a = Affine {ax :: a, ay :: a}
 
 
 -- | The curve order constant of BLS12-381 is exported for reference.
-order = 0x73eda753299d7d483339d80809a1d80553bda402fffe5bfeffffffff00000001
+groupOrder :: Integer
+groupOrder = 0x73eda753299d7d483339d80809a1d80553bda402fffe5bfeffffffff00000001
 
 
 -- | The standard generator point for G1.
+g1Generator :: Maybe (Point Fq1)
 g1Generator = Just (Affine (Fq1 0x17f1d3a73197d7942695638c4fa9ac0fc3688c4f9774b905a14e3a3f171bac586c55e83ff97a1aeffb3af00adb22c6bb)
                            (Fq1 0x08b3f481e3aaa0f1a09e30ed741d8ae4fcf5e095d5d00af600db18cb2c04b3edd03cc744a2888ae40caa232946c5e7e1))
 
 
 -- | The standard generator point for G2.
+g2Generator :: Maybe (Point Fq2)
 g2Generator = Just (Affine (Fq2 (Fq1 0x13e02b6052719f607dacd3a088274f65596bd0d09920b61ab5da61bbdc7f5049334cf11213945d57e5ac7d055d042b7e)
                                 (Fq1 0x024aa2b2f08f0a91260805272dc51051c6e47ad4fa403b02b4510b647ae3d1770bac0326a805bbefd48056c8c121bdb8))
                            (Fq2 (Fq1 0x0606c4a02ea734cc32acd2b02bc28b99cb3e287e85a763af267492ab572e99ab3f370d275cec1da1aaa9075ff05f79be)
@@ -232,14 +238,14 @@ isOnCurve PointAtInfinity = False
 isOnCurve a0 = ay a0^2 == (ax a0^3 + mul_nonres 4)
 
 
--- Check subgroup=order membership
+-- Check subgroup=order membership (note pointMul calls isOnCurve)
 isInSubGroup :: (Field a, Eq a) => Point a -> Bool
-isInSubGroup p = pointMul order p == Just PointAtInfinity
+isInSubGroup p = pointMul groupOrder p == Just PointAtInfinity
 
 
 -- | Given @x@ and @y@, construct a valid point contained in G1.
 g1Point :: Integer -> Integer -> Maybe (Point Fq1)
-g1Point x y = if isOnCurve candidate && isInSubGroup candidate
+g1Point x y = if isInSubGroup candidate
               then Just candidate else Nothing
   where
     candidate = Affine (fromInteger x) (fromInteger y)
@@ -247,14 +253,18 @@ g1Point x y = if isOnCurve candidate && isInSubGroup candidate
 
 -- | Given @xi@, @x@, @yi@ and @y@, construct a valid point contained in G2.
 g2Point :: Integer -> Integer -> Integer -> Integer -> Maybe (Point Fq2)
-g2Point x1 x0 y1 y0 = if isOnCurve candidate && isInSubGroup candidate
+g2Point x1 x0 y1 y0 = if isInSubGroup candidate
                       then Just candidate else Nothing
   where
     candidate = Affine (Fq2 (fromInteger x1) (fromInteger x0))
                        (Fq2 (fromInteger y1) (fromInteger y0))
 
 
--- Add affine curve points; handle all corner cases
+-- While the use of Affine coordinates in pointAdd and pointMul stems from the
+-- strong preference for simplicity, the inversion operation impacts performance.
+-- This could be improved by using projective coordinates per https://eprint.iacr.org/2015/1060.pdf
+
+-- | Add affine curve points; handle all corner cases
 pointAdd :: (Field a, Eq a) => Point a -> Point a -> Point a
 pointAdd PointAtInfinity q = q
 pointAdd p PointAtInfinity = p
@@ -278,10 +288,16 @@ pointDouble Affine {ax=x1, ay=y1} = Affine {ax=x3, ay=y3}
     y3 = slope * (x1 - x3) - y1
 
 
--- | Multiply a positive integer scalar and valid point in either G1 or G2.
+-- Negate a curve Point
+pointNegate :: (Field a, Eq a) => Point a -> Point a
+pointNegate Affine {ax=x1, ay=y1} = Affine {ax=x1, ay=(-1)*y1}
+
+
+-- | Multiply an integer scalar and valid point in either G1 or G2.
 pointMul :: (Field a, Eq a) => Integer -> Point a -> Maybe (Point a)
 pointMul scalar base
   | isOnCurve base && scalar > 0 = Just (pointMul' scalar base PointAtInfinity)
+  | isOnCurve base && scalar < 0 = Just (pointMul' (-1*scalar) (pointNegate base) PointAtInfinity)
   | otherwise = Nothing
 
 
@@ -305,7 +321,7 @@ untwist Affine {ax=x1, ay=y1} = Affine {ax=wideX, ay=wideY}
     wideX = Fq12 0 (Fq6 0 0 x1) * wsq
     wideY = Fq12 0 (Fq6 0 0 y1) * wcu
 
-
+-- Used in miller loop for computing line functions l_r,r and v_2r
 doubleEval :: Point Fq2 -> Point Fq1 -> Fq12
 doubleEval r p = fromInteger (t0 (ay p)) - (fromInteger (t0 (ax p)) * slope) - v
   where
@@ -315,7 +331,7 @@ doubleEval r p = fromInteger (t0 (ay p)) - (fromInteger (t0 (ax p)) * slope) - v
     v = ay wideR - slope * ax wideR
 
 
--- Used in miller loop when current bit index is true
+-- Used in miller loop for computer line function l_r,p and v_r+p
 addEval :: Point Fq2 -> Point Fq2 -> Point Fq1 -> Fq12
 addEval r q p = if (ax wideR == ax wideQ) && (ay wideR == - ay wideQ)
                 then fromInteger (t0 (ax p)) - ax wideR
@@ -324,7 +340,7 @@ addEval r q p = if (ax wideR == ax wideQ) && (ay wideR == - ay wideQ)
     wideR = untwist r
     wideQ = untwist q
 
-
+-- Helper function for addEval
 addEval' :: Point Fq12 -> Point Fq12 -> Point Fq1 -> Fq12
 addEval' wideR wideQ p = fromInteger (t0 (ay p)) - (fromInteger (t0 (ax p)) * slope) - v
   where
@@ -341,7 +357,7 @@ miller p q = miller' p q q iterations 1
                      else Just(odd b, shiftR b 1)) 0xd201000000010000
 
 
--- Double and add helper for miller
+-- Double and add loop helper for Miller (iterative)
 miller' :: Point Fq1 -> Point Fq2 -> Point Fq2 -> [Bool] -> Fq12 -> Fq12
 miller' p q r [] result = result
 miller' p q r (i:iters) result =
@@ -366,7 +382,7 @@ pairing :: Point Fq1 -> Point Fq2 -> Maybe Fq12
 pairing p_g1 q_g2
   | p_g1 == PointAtInfinity || q_g2 == PointAtInfinity = Nothing
   | isOnCurve p_g1 && isInSubGroup p_g1 && isOnCurve q_g2 && isInSubGroup q_g2
-      = Just (pow' (miller p_g1 q_g2) (div (prime^12 - 1) order) 1)
+      = Just (pow' (miller p_g1 q_g2) (div (fieldPrime^12 - 1) groupOrder) 1)
   | otherwise = Nothing
 
 
@@ -379,8 +395,8 @@ smokeTest = and $ res1 ++ res2 ++ res6 ++ res12 ++ resMul ++ resOne
     res2  = [(fromInteger x :: Fq2)  * inv (fromInteger x) == 1 | x <- operands]
     res6  = [(fromInteger x :: Fq6)  * inv (fromInteger x) == 1 | x <- operands]
     res12 = [(fromInteger x :: Fq12) * inv (fromInteger x) == 1 | x <- operands]
-    resMul = [(g1Generator >>= pointMul order) == Just PointAtInfinity]
+    resMul = [(g1Generator >>= pointMul groupOrder) == Just PointAtInfinity]
     p_12p34m56 = g1Generator >>= pointMul ((12 + 34) * 56)
     q_78 = g2Generator >>= pointMul 78
     (Just pair) =  Control.Monad.join (pairing <$> p_12p34m56 <*> q_78)
-    resOne = [pow' pair order 0 == 1]  -- confirms pair result is rth root of unity
+    resOne = [pow' pair groupOrder 0 == 1]  -- confirms pair result is rth root of unity
