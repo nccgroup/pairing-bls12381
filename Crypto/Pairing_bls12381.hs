@@ -103,7 +103,8 @@ instance Field Fq1 where
   mul_nonres a0 = a0
 
   -- All fields inverse (incl 0) arrive here
-  inv (Fq1 a0) = if a0 == 0 then error "inv of 0" else Fq1 (beea a0 fieldPrime 1 0 fieldPrime)
+  inv (Fq1 a0) = if a0 == 0 then error "inv of 0"
+                            else Fq1 (beea a0 fieldPrime 1 0 fieldPrime)
 
 
 -- Binary Extended Euclidean Algorithm (note that there are no divisions)
@@ -190,7 +191,8 @@ instance Num Fq12 where
   (-) (Fq12 a1 a0) (Fq12 b1 b0) = Fq12 (a1 - b1) (a0 - b0)
 
   -- Opportunity for Karatsuba optimization: https://en.wikipedia.org/wiki/Karatsuba_algorithm
-  (*) (Fq12 a1 a0) (Fq12 b1 b0) = Fq12 (a1 * b0 + a0 * b1) (a0 * b0 + mul_nonres (a1 * b1))
+  (*) (Fq12 a1 a0) (Fq12 b1 b0) = Fq12 (a1 * b0 + a0 * b1)
+                                       (a0 * b0 + mul_nonres (a1 * b1))
 
   fromInteger a0 = Fq12 0 (fromInteger a0)
 
@@ -368,15 +370,6 @@ miller' p q r (i:iters) result =
     doubleR = pointDouble r
 
 
--- Used for the final exponentiation; opportunity for further perf optimization
-pow' :: (Field a) => a -> Integer -> a -> a
-pow' a0 exp result
-  | exp <= 1 = a0
-  | even exp = accum^2
-  | otherwise = accum^2 * a0
-  where accum = pow' a0 (shiftR exp 1) result
-
-
 -- | Pairing calculation for a valid point in G1 and another valid point in G2.
 pairing :: Point Fq1 -> Point Fq2 -> Maybe Fq12
 pairing p_g1 q_g2
@@ -384,6 +377,15 @@ pairing p_g1 q_g2
   | isOnCurve p_g1 && isInSubGroup p_g1 && isOnCurve q_g2 && isInSubGroup q_g2
       = Just (pow' (miller p_g1 q_g2) (div (fieldPrime^12 - 1) groupOrder) 1)
   | otherwise = Nothing
+
+
+-- Used for the final exponentiation; opportunity for further perf optimization
+pow' :: (Field a) => a -> Integer -> a -> a
+pow' a0 exp result
+  | exp <= 1 = a0
+  | even exp = accum^2
+  | otherwise = accum^2 * a0
+  where accum = pow' a0 (shiftR exp 1) result
 
 
 -- | A quick test of externally inaccessible functionality; returns success.
