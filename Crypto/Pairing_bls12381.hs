@@ -299,7 +299,8 @@ pointNegate Affine {ax=x1, ay=y1} = Affine {ax=x1, ay=(-1)*y1}
 pointMul :: (Field a, Eq a) => Integer -> Point a -> Maybe (Point a)
 pointMul scalar base
   | isOnCurve base && scalar > 0 = Just (pointMul' scalar base PointAtInfinity)
-  | isOnCurve base && scalar < 0 = Just (pointMul' (-1*scalar) (pointNegate base) PointAtInfinity)
+  | isOnCurve base && scalar < 0 = Just (pointMul' (-1*scalar) (pointNegate base)
+                                         PointAtInfinity)
   | otherwise = Nothing
 
 
@@ -318,18 +319,16 @@ untwist :: Point Fq2 -> Point Fq12
 untwist Affine {ax=x1, ay=y1} = Affine {ax=wideX, ay=wideY}
   where
     root = Fq6 0 1 0
-    wsq = inv (Fq12 0 root)
-    wcu = inv (Fq12 root 0)
-    wideX = Fq12 0 (Fq6 0 0 x1) * wsq
-    wideY = Fq12 0 (Fq6 0 0 y1) * wcu
+    wideX = Fq12 0 (Fq6 0 0 x1) * inv (Fq12 0 root)
+    wideY = Fq12 0 (Fq6 0 0 y1) * inv (Fq12 root 0)
+
 
 -- Used in miller loop for computing line functions l_r,r and v_2r
 doubleEval :: Point Fq2 -> Point Fq1 -> Fq12
 doubleEval r p = fromInteger (t0 (ay p)) - (fromInteger (t0 (ax p)) * slope) - v
   where
     wideR = untwist r
-    rx2 = ax wideR^2
-    slope = (3 * rx2) * inv (2 * ay wideR)
+    slope = (3 * ax wideR^2) * inv (2 * ay wideR)
     v = ay wideR - slope * ax wideR
 
 
@@ -341,6 +340,7 @@ addEval r q p = if (ax wideR == ax wideQ) && (ay wideR == - ay wideQ)
   where
     wideR = untwist r
     wideQ = untwist q
+
 
 -- Helper function for addEval
 addEval' :: Point Fq12 -> Point Fq12 -> Point Fq1 -> Fq12
