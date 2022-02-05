@@ -1,10 +1,10 @@
 cabal-version: 1.12
 
--- This file has been generated from package.yaml by hpack version 0.33.0.
+-- This file has been generated from package.yaml by hpack version 0.34.4.
 --
 -- see: https://github.com/sol/hpack
 --
--- hash: b166967cd1544392d71622936cb07a63dea236a75239500e47ad2bb92c05658a
+-- hash: 58bad368a89e7279395ece52615eb55a54de455a16277ddbe378ef239c05831b
 
 name:           pairing-bls12381
 version:        0.1.0.0
@@ -30,6 +30,7 @@ source-repository head
 library
   exposed-modules:
       Pairing_bls12381
+      Sqrt
   other-modules:
       Paths_pairing_bls12381
   hs-source-dirs:
@@ -40,11 +41,9 @@ library
 
 executable pairing-bls12381-exe
   main-is: Main.hs
-  other-modules:
-      Paths_pairing_bls12381
   hs-source-dirs:
       app
-  ghc-options: -threaded -rtsopts -with-rtsopts=-N -Wall -Wcompat -Wincomplete-record-updates -Wincomplete-uni-patterns -Wredundant-constraints -O2
+  ghc-options: -threaded -rtsopts -with-rtsopts=-N -Wall -Wcompat -Wincomplete-record-updates -Wincomplete-uni-patterns -Wredundant-constraints -Wno-type-defaults -Wno-incomplete-patterns -Wno-name-shadowing -Wno-unused-matches -Wno-incomplete-uni-patterns -O2
   build-depends:
       base >=4.7 && <5
     , pairing-bls12381

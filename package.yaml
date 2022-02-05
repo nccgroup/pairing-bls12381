@@ -33,10 +33,17 @@ executables:
     - -Wincomplete-record-updates
     - -Wincomplete-uni-patterns
     - -Wredundant-constraints
+    - -Wno-type-defaults
+    - -Wno-incomplete-patterns
+    - -Wno-name-shadowing
+    - -Wno-unused-matches
+    - -Wno-incomplete-uni-patterns
     - -O2
     dependencies:
     - pairing-bls12381
-
+    when:
+      - condition: false
+        other-modules: Paths_pairing_bls12381
 tests:
   pairing-bls12381-test:
     main:                Test.hs

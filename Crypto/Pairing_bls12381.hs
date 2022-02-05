@@ -291,7 +291,7 @@ pointDouble Affine {ax=x1, ay=y1} = Affine {ax=x3, ay=y3}
 
 
 -- Negate a curve Point
-pointNegate :: (Field a, Eq a) => Point a -> Point a
+pointNegate :: (Field a) => Point a -> Point a
 pointNegate Affine {ax=x1, ay=y1} = Affine {ax=x1, ay=(-1)*y1}
 
 
