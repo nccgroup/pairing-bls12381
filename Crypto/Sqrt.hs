@@ -2,7 +2,8 @@ module Sqrt where
 
 import Data.Bits (shiftR)
 import Data.Maybe (fromJust)
--- import Debug.Trace (trace)
+import Debug.Trace (trace)
+import System.Random (RandomGen, mkStdGen, randomR)
 
 powMod :: Integer -> Integer -> Integer -> Integer
 powMod a exp q | exp < 0 || q < 1 = error "Invalid exponent or modulus"
@@ -19,7 +20,8 @@ sqrt_3mod4 :: Integer -> Integer -> Maybe Integer
 sqrt_3mod4 _ q | q < 3 || (q `mod` 4) /= 3 = error "Invalid modulus"
 sqrt_3mod4 a q = result
   where
-    t1 = powMod a ((q + 1) `div` 4) q
+    cq = (q + 1) `div` 4
+    t1 = powMod a cq q
     result = if powMod t1 2 q == a then Just t1 else Nothing
 
 
@@ -30,9 +32,9 @@ sqrt_5mod8 :: Integer -> Integer -> Maybe Integer
 sqrt_5mod8 _ q | q < 3 || (q `mod` 8) /= 5 = error "Invalid modulus"
 sqrt_5mod8 a q = result
   where
-    c1 = fromJust $ sqrt_ts (q - 1) q  -- Can be precomputed with fixed modulus
-    c2 = (q + 3) `mod` 8               -- Can be precomputed with fixed modulus
-    t1 = powMod a c2 q
+    cq = (q + 3) `div` 8               -- Can be precomputed when modulus is fixed
+    c1 = fromJust $ sqrt_ts (q - 1) q  -- Can be precomputed when modulus is fixed
+    t1 = powMod a cq q
     t2 = (t1 * c1) `mod` q
     result = if powMod t1 2 q == a then Just t1            -- Not constant-time
                else if powMod t2 2 q == a then Just t2     -- Not constant-time
@@ -45,13 +47,13 @@ sqrt_9mod16 :: Integer -> Integer -> Maybe Integer
 sqrt_9mod16 _ q | q < 3 || (q `mod` 16) /= 9 = error "Invalid modulus"
 sqrt_9mod16 a q = result
   where
-    c1 = fromJust $ sqrt_ts (q - 1) q  -- Can be precomputed with fixed modulus
-    c4 = fromJust $ sqrt_ts c1 q       -- Can be precomputed with fixed modulus
-    c2 = (q + 7) `div` 16
-    t1 = powMod a c2 q
-    t2 = (t1 * c1) `mod` q
-    t3 = (t1 * c4) `mod` q
-    t4 = (t2 * c4) `mod` q
+    cq = (q + 7) `div` 16              -- Can be precomputed when modulus is fixed
+    c1 = fromJust $ sqrt_ts (q - 1) q  -- Can be precomputed when modulus is fixed
+    c4 = fromJust $ sqrt_ts c1 q       -- Can be precomputed when modulus is fixed
+    t1 = powMod a cq q                 -- root r  (we don't care about sign)
+    t2 = (t1 * c1) `mod` q             -- r * square_root(-1)
+    t3 = (t1 * c4) `mod` q             -- r * quad_root(-1)
+    t4 = (t2 * c4) `mod` q             -- r * square_root(-1) * quad_root(-1) TODO: FISHY!
     result = if powMod t1 2 q == a then Just t1            -- Not constant-time
                else if powMod t2 2 q == a then Just t2     -- Not constant-time
                  else if powMod t3 2 q == a then Just t3   -- Not constant-time
@@ -103,10 +105,17 @@ sqrt_ts a q = if powMod result 2 q == a then Just result else Nothing
             b_new = t_new
 
 
-
-
-testMe = (squares == actual)
+testSqrt :: RandomGen b => (Integer -> Integer -> Maybe Integer) -> Integer -> Integer -> b -> (Bool, b)
+testSqrt func prime     0 rndGen = (True, rndGen)
+testSqrt func prime count rndGen = result
   where
-    squares = [x * x `mod` p9mod16Prime | x <- [10..1000]]
-    roots = map (\x -> fromJust $ sqrt_9mod16 x p9mod16Prime) squares
-    actual = map (\x -> x * x `mod` p9mod16Prime) roots
+    (rndRoot, rndGenNext) = randomR (2, prime - 1) rndGen
+    xx = func (rndRoot^2 `mod` prime) prime
+    res = if xx /= Nothing then fromJust xx else error (show rndRoot)
+    -- res = fromJust $ func (rndRoot^2 `mod` prime) prime
+    good = (res^2 `mod` prime == rndRoot^2 `mod` prime)
+    result = if not good then (False, rndGenNext) else testSqrt func prime (count-1) rndGenNext
+
+testGo_3mod4 = testSqrt sqrt_3mod4 bls12381Prime   10000 (mkStdGen 100)
+testGo_5mod8 = testSqrt sqrt_5mod8 curve25519Prime 10000 (mkStdGen 200)
+testGo_9mod16 = testSqrt sqrt_9mod16 p9mod16Prime  10000 (mkStdGen 300)

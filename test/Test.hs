@@ -5,12 +5,22 @@ import Control.Monad (join)
 import Test.Tasty
 import qualified Test.Tasty.HUnit as HU
 import Pairing_bls12381
-
+import Sqrt
+import System.Random
 
 main :: IO ()
-main = defaultMain $ testGroup "\nRunning Tests" [huTstSmokeTest, huTstCurve,
+main = defaultMain $ testGroup "\nRunning Tests" [huSqrt3mod4, huSqrt5mod8, huSqrt9mod16, huTstSmokeTest, huTstCurve,
   huTstPairingPts, huTstPointNeg, huTstPairingMul, huTstPairingAgg, huTstPairingGen]
 
+
+huSqrt3mod4 :: TestTree
+huSqrt3mod4 = HU.testCase "huSqrt3mod4" $ HU.assertBool "bad huSqrt3mod4" $ fst testGo_3mod4
+
+huSqrt5mod8 :: TestTree
+huSqrt5mod8 = HU.testCase "huSqrt5mod8" $ HU.assertBool "bad huSqrt5mod8" $ fst testGo_5mod8
+
+huSqrt9mod16 :: TestTree
+huSqrt9mod16 = HU.testCase "huSqrt9mod16" $ HU.assertBool "bad huSqrt9mod16" $ fst testGo_9mod16
 
 huTstSmokeTest :: TestTree
 huTstSmokeTest = HU.testCase "huTstSmokeTest" $ HU.assertBool "bad SmokeTest" smokeTest
