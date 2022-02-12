@@ -39,7 +39,9 @@ executables:
     - -Wno-name-shadowing
     - -Wno-unused-matches
     - -Wno-incomplete-uni-patterns
-    - -O2
+#    - -O2
+    - -fno-ignore-asserts
+
     dependencies:
     - pairing-bls12381
     when:
@@ -58,7 +60,8 @@ tests:
     - -Wincomplete-record-updates
     - -Wincomplete-uni-patterns
     - -Wredundant-constraints
-    - -O2
+#    - -O0
+    - -fno-ignore-asserts
     dependencies:
     - pairing-bls12381
     - tasty

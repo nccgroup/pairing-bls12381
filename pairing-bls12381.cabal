@@ -4,7 +4,7 @@ cabal-version: 1.12
 --
 -- see: https://github.com/sol/hpack
 --
--- hash: 581b93cb34c5037ce2a496b055b9af343aeb1101c142c050d44ccd6ab8affa66
+-- hash: baa2362387d54317c297b4afc9cf6862ab8f2423ab1c0c4f3e8216a72b091615
 
 name:           pairing-bls12381
 version:        0.1.0.0
@@ -44,7 +44,7 @@ executable pairing-bls12381-exe
   main-is: Main.hs
   hs-source-dirs:
       app
-  ghc-options: -threaded -rtsopts -with-rtsopts=-N -Wall -Wcompat -Wincomplete-record-updates -Wincomplete-uni-patterns -Wredundant-constraints -Wno-type-defaults -Wno-incomplete-patterns -Wno-name-shadowing -Wno-unused-matches -Wno-incomplete-uni-patterns -O2
+  ghc-options: -threaded -rtsopts -with-rtsopts=-N -Wall -Wcompat -Wincomplete-record-updates -Wincomplete-uni-patterns -Wredundant-constraints -Wno-type-defaults -Wno-incomplete-patterns -Wno-name-shadowing -Wno-unused-matches -Wno-incomplete-uni-patterns -fno-ignore-asserts
   build-depends:
       base >=4.7 && <5
     , pairing-bls12381
@@ -58,7 +58,7 @@ test-suite pairing-bls12381-test
       Paths_pairing_bls12381
   hs-source-dirs:
       test
-  ghc-options: -threaded -rtsopts -with-rtsopts=-N -Wall -Wcompat -Wincomplete-record-updates -Wincomplete-uni-patterns -Wredundant-constraints -O2
+  ghc-options: -threaded -rtsopts -with-rtsopts=-N -Wall -Wcompat -Wincomplete-record-updates -Wincomplete-uni-patterns -Wredundant-constraints -fno-ignore-asserts
   build-depends:
       base >=4.7 && <5
     , pairing-bls12381

@@ -9,7 +9,7 @@ import Sqrt
 import System.Random
 
 main :: IO ()
-main = defaultMain $ testGroup "\nRunning Tests" [huSqrt3mod4, huSqrt5mod8, huSqrt9mod16, huTstSmokeTest, huTstCurve,
+main = defaultMain $ testGroup "\nRunning Tests" [huSqrtVar, huSqrt3mod4, huSqrt5mod8, huSqrt9mod16, huTstSmokeTest, huTstCurve,
   huTstPairingPts, huTstPointNeg, huTstPairingMul, huTstPairingAgg, huTstPairingGen]
 
 
@@ -21,6 +21,10 @@ huSqrt5mod8 = HU.testCase "huSqrt5mod8" $ HU.assertBool "bad huSqrt5mod8" $ fst 
 
 huSqrt9mod16 :: TestTree
 huSqrt9mod16 = HU.testCase "huSqrt9mod16" $ HU.assertBool "bad huSqrt9mod16" $ fst testGo_9mod16
+
+huSqrtVar :: TestTree
+huSqrtVar = HU.testCase "huSqrtVar" $ HU.assertBool "bad huSqrtVar" $ fst testGo_var0 &&
+  fst testGo_var1 && fst testGo_var2 && fst testGo_var3
 
 huTstSmokeTest :: TestTree
 huTstSmokeTest = HU.testCase "huTstSmokeTest" $ HU.assertBool "bad SmokeTest" smokeTest
