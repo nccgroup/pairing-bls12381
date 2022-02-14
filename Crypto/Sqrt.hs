@@ -9,8 +9,8 @@ import Control.Exception
 -- Result = a^exp mod q
 powMod :: Integer -> Integer -> Integer -> Integer
 powMod a exp q | exp < 0 || q < 1 = error "Invalid exponent or modulus"
-powMod a 0 q = 1
-powMod a 1 q = a
+powMod _ 0 _ = 1
+powMod a 1 _ = a
 powMod a exp q | even exp  = powMod (a * a `mod` q) (shiftR exp 1) q
                | otherwise = a * powMod a (exp - 1) q `mod` q
 
@@ -87,29 +87,28 @@ pallasPrime = 0x40000000000000000000000000000000224698fc094cf91b992d30ed00000001
 
 -- Result = Maybe square_root(a) mod q for arbitrary prime q
 sqrt_var :: Integer -> Integer -> Maybe Integer
-sqrt_var n p = if powMod result 2 p == n then Just result else Nothing
+sqrt_var a q = if powMod result 2 q == a then Just result else Nothing
   where
-    (q, s) = write_qm1_eq_p2s p
-    z = head [x | x <- [1..], p - 1 == eulerCriterion x p]
-    c =  powMod z q p
-    t =  powMod n q p
-    r =  powMod n ((q + 1) `div` 2) p
+    (p, s) = write_qm1_eq_p2s q
+    z = head [x | x <- [1..], q - 1 == eulerCriterion x q]
+    c =  powMod z p q
+    t =  powMod a p q
+    r =  powMod a ((p + 1) `div` 2) q
     result = loopy t r c s
       where
         loopy 0 _ _ _ = 0
         loopy 1 r _ _ = r
-        loopy t r c s = assert invariants (loopy t_new r_new c_new s_new)  -- asserts only in ghci
+        loopy tt rr cc ss = assert invariants (loopy t_new r_new c_new s_new)  -- asserts only in ghci
           where
-            i = head [i | i <- [1..s], powMod t (2^i) p == 1]
-            b = powMod c (2^(s-i-1)) p
-            s_new = i
-            c_new =  powMod b 2 p
-            t_new = (t * (powMod b 2 p)) `mod` p
-            r_new = r * b `mod` p
-            invariants = (s_new < s) &&
-                         (powMod t_new (2^(s_new - 1)) p) == 1 &&
-                         (powMod r_new 2 p) == (t_new * n `mod` p) &&
-                         (powMod c_new (2^(s_new - 1)) p) == (p - 1)
+            s_new = head [i | i <- [1..(ss-1)], powMod tt (2^i) q == 1]
+            bb = powMod cc (2^(ss - 1 - s_new)) q
+            c_new =  powMod bb 2 q
+            t_new = (tt * (powMod bb 2 q)) `mod` q
+            r_new = rr * bb `mod` q
+            invariants = (s_new < ss) &&
+                         (powMod t_new (2^(s_new - 1)) q) == 1 &&
+                         (powMod r_new 2 q) == (t_new * a `mod` q) &&
+                         (powMod c_new (2^(s_new - 1)) q) == (q - 1)
 
 
 sqrt_ts :: Integer -> Integer -> Maybe Integer
