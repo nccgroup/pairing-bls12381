@@ -82,33 +82,33 @@ eulerCriterion a q | even q || q < 3 = error "Invalid arguments"
 eulerCriterion a q = powMod a ((q - 1) `div` 2) q
 
 
-pallasPrime :: Integer  -- Prime q = p*2^s + 1, where p is large and s=32
+pallasPrime :: Integer  -- Prime q = p * 2^s + 1, where p is large and s=32
 pallasPrime = 0x40000000000000000000000000000000224698fc094cf91b992d30ed00000001
 
 -- Result = Maybe square_root(a) mod q for arbitrary prime q
 sqrt_var :: Integer -> Integer -> Maybe Integer
 sqrt_var a q = if powMod result 2 q == a then Just result else Nothing
   where
-    (p, s) = write_qm1_eq_p2s q
-    z = head [x | x <- [1..], q - 1 == eulerCriterion x q]
-    c =  powMod z p q
-    t =  powMod a p q
-    r =  powMod a ((p + 1) `div` 2) q
+    (p, s) = write_qm1_eq_p2s q    -- write (q - 1) as p * 2^s
+    z = head [x | x <- [1..], q - 1 == eulerCriterion x q]    -- non-square
+    c =  powMod z p q    -- 2^s roots of -1
+    t =  powMod a p q    -- 2^s roots of +1
+    r =  powMod a ((p + 1) `div` 2) q    -- first hopeful proposed root
     result = loopy t r c s
       where
         loopy 0 _ _ _ = 0
-        loopy 1 r _ _ = r
-        loopy tt rr cc ss = assert invariants (loopy t_new r_new c_new s_new)  -- asserts only in ghci
+        loopy 1 r _ _ = r    -- t is 1, so we are finished
+        loopy t r c s = assert invariants (loopy t_next r_next c_next s_next)
           where
-            s_new = head [i | i <- [1..(ss-1)], powMod tt (2^i) q == 1]
-            bb = powMod cc (2^(ss - 1 - s_new)) q
-            c_new =  powMod bb 2 q
-            t_new = (tt * (powMod bb 2 q)) `mod` q
-            r_new = rr * bb `mod` q
-            invariants = (s_new < ss) &&
-                         (powMod t_new (2^(s_new - 1)) q) == 1 &&
-                         (powMod r_new 2 q) == (t_new * a `mod` q) &&
-                         (powMod c_new (2^(s_new - 1)) q) == (q - 1)
+            s_next = head [i | i <- [1..(s - 1)], powMod t (2^i) q == 1]
+            fix = powMod c (2^(s - s_next - 1)) q
+            r_next = r * fix `mod` q
+            t_next = (t * (powMod fix 2 q)) `mod` q
+            c_next = powMod c (2^(s - s_next)) q    -- our next fountain of fixes
+            invariants = (s_next < s) &&
+                         (powMod t_next (2^(s_next - 1)) q) == 1 &&
+                         (powMod r_next 2 q) == (t_next * a `mod` q) &&
+                         (powMod c_next (2^(s_next - 1)) q) == (q - 1)
 
 
 sqrt_ts :: Integer -> Integer -> Maybe Integer
